@@ -9,6 +9,7 @@ extern crate std;
 pub mod communication_pipe;
 pub mod i2c;
 pub mod interval_timer;
+pub mod spi;
 
 pub mod video_dma_control;
 
