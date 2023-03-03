@@ -223,10 +223,13 @@ const REG_VIDEO_RDMA_MONITOR_HEIGHT: usize = 0x13;
 const REG_VIDEO_RDMA_MONITOR_SIZE: usize = 0x14;
 const REG_VIDEO_RDMA_MONITOR_ARLEN: usize = 0x17;
 
-use jelly_mem_access::*;
+use jelly_mem_access::MemAccess;
+
+type Result<T> = core::result::Result<T, &'static str>;
 
 pub struct VideoDmaControl<T: MemAccess> {
     acc: T,
+    wait_fn: Option<fn()>,
 
     pixel_size: i32,
     word_size: i32,
@@ -246,19 +249,20 @@ pub struct VideoDmaControl<T: MemAccess> {
 }
 
 impl<T: MemAccess> VideoDmaControl<T> {
-    pub fn new(acc: T, pixel_size: i32, word_size: i32) -> Result<Self, ()> {
+    pub fn new(acc: T, pixel_size: i32, word_size: i32, wait_fn: Option<fn()>) -> Result<Self> {
         let core_id = unsafe { acc.read_reg32(0) };
         if core_id != CORE_ID_DMA_STREAM_WRITE
             && core_id != CORE_ID_DMA_STREAM_READ
             && core_id != CORE_ID_VDMA_AXI4S_TO_AXI4
             && core_id != CORE_ID_VDMA_AXI4_TO_AXI4S
         {
-            //                println!("Unknown DMA core id : {}", core_id);
-            return Err(());
+            // println!("Unknown DMA core id : {}", core_id);
+            return Err("Unknown DMA core ID");
         }
 
         Ok(Self {
             acc: acc,
+            wait_fn: wait_fn,
             pixel_size: pixel_size,
             word_size: word_size,
             auto_stop: true,
@@ -275,6 +279,12 @@ impl<T: MemAccess> VideoDmaControl<T> {
             offset_y: 0,
             len_max: 15,
         })
+    }
+
+    fn wait(&self) {
+        if let Some(wait_fn) = self.wait_fn {
+            wait_fn();
+        }
     }
 
     fn write_reg(&mut self, reg: usize, data: usize) {
@@ -311,8 +321,8 @@ impl<T: MemAccess> VideoDmaControl<T> {
         self.frame_step = frame_step;
     }
 
-    pub fn start(&mut self) -> bool {
-        self.stop();
+    pub fn start(&mut self) -> Result<()> {
+        self.stop(Some(0))?;
         self.start_dma(
             self.buf_addr,
             self.width,
@@ -327,9 +337,9 @@ impl<T: MemAccess> VideoDmaControl<T> {
         )
     }
 
-    pub fn stop(&mut self) -> bool {
-        self.stop_dma();
-        self.wait_for_stop()
+    pub fn stop(&mut self, timeout: Option<usize>) -> Result<()> {
+        self.stop_dma()?;
+        self.wait_for_stop(timeout)
     }
 
     pub fn oneshot(
@@ -342,25 +352,25 @@ impl<T: MemAccess> VideoDmaControl<T> {
         frame_step: i32,
         offset_x: i32,
         offset_y: i32,
-    ) -> bool {
+        timeout: Option<usize>,
+    ) -> Result<()> {
         // 一度止める
         let old_busy = self.busy;
-        self.stop();
+        self.stop(Some(0))?;
 
         // ワンショット転送
         self.start_dma(
             addr, width, height, frames, line_step, frame_step, offset_x, offset_y, true, false,
-        );
+        )?;
 
         // 完了待ち
-        self.wait_for_stop();
+        self.wait_for_stop(timeout)?;
 
         // 動いていたなら再開
         if old_busy {
-            self.start();
+            self.start()?;
         }
-
-        return true;
+        Ok(())
     }
 
     pub fn start_oneshot(
@@ -373,17 +383,26 @@ impl<T: MemAccess> VideoDmaControl<T> {
         frame_step: i32,
         offset_x: i32,
         offset_y: i32,
-    ) -> bool {
+    ) -> Result<()> {
         // ワンショット開始
-        self.stop();
+        self.stop(Some(0))?;
         self.start_dma(
             addr, width, height, frames, line_step, frame_step, offset_x, offset_y, true, false,
         )
     }
 
-    pub fn wait_for_stop(&mut self) -> bool {
-        while self.is_busy_dma() {}
-        return true;
+    pub fn wait_for_stop(&mut self, timeout: Option<usize>) -> Result<()> {
+        let mut count: usize = 0;
+        while self.is_busy_dma()? {
+            self.wait();
+            if let Some(tm) = timeout {
+                count += 1;
+                if count >= tm {
+                    return Err("vdma timeout");
+                }
+            }
+        }
+        Ok(())
     }
 
     fn start_dma(
@@ -398,7 +417,7 @@ impl<T: MemAccess> VideoDmaControl<T> {
         offset_y: i32,
         oneshot: bool,
         auto_buf: bool,
-    ) -> bool {
+    ) -> Result<()> {
         let line_step = if line_step <= 0 {
             width * self.pixel_size
         } else {
@@ -483,15 +502,16 @@ impl<T: MemAccess> VideoDmaControl<T> {
 
             _ => {
                 //                println!("Unknown DMA core id : " << self.core_id);
+                panic!("Unknown ID");
             }
         }
 
         self.busy = true;
 
-        return true;
+        Ok(())
     }
 
-    fn stop_dma(&mut self) -> bool {
+    fn stop_dma(&mut self) -> Result<()> {
         match self.core_id {
             CORE_ID_DMA_STREAM_WRITE => {
                 // Write DMA
@@ -514,14 +534,14 @@ impl<T: MemAccess> VideoDmaControl<T> {
             }
 
             _ => {
-                return false;
+                panic!("Unknown ID");
             }
         }
 
-        return true;
+        Ok(())
     }
 
-    fn is_busy_dma(&mut self) -> bool {
+    fn is_busy_dma(&mut self) -> Result<bool> {
         match self.core_id {
             CORE_ID_DMA_STREAM_WRITE => {
                 // Write DMA
@@ -544,10 +564,10 @@ impl<T: MemAccess> VideoDmaControl<T> {
             }
 
             _ => {
-                return false;
+                panic!("Unknown ID");
             }
         }
 
-        return self.busy;
+        Ok(self.busy)
     }
 }
