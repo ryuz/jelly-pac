@@ -85,13 +85,13 @@ impl<T: MemAccess> JellyCommunicationPipe<T> {
 
 impl<T: MemAccess> PipeSend for JellyCommunicationPipe<T> {
     fn polling_tx(&self) -> bool {
-        unsafe { self.reg_acc.read_reg8(REG_TX_STATUS) != 0 }
+        unsafe { self.reg_acc.read_reg_u8(REG_TX_STATUS) != 0 }
     }
 
     fn putc(&self, c: u8) {
         self.wait_tx();
         unsafe {
-            self.reg_acc.write_reg8(REG_TX_DATA, c);
+            self.reg_acc.write_reg_u8(REG_TX_DATA, c);
         }
     }
 
@@ -104,12 +104,12 @@ impl<T: MemAccess> PipeSend for JellyCommunicationPipe<T> {
 
 impl<T: MemAccess> PipeRecv for JellyCommunicationPipe<T> {
     fn polling_rx(&self) -> bool {
-        unsafe { self.reg_acc.read_reg8(REG_RX_STATUS) != 0 }
+        unsafe { self.reg_acc.read_reg_u8(REG_RX_STATUS) != 0 }
     }
 
     fn getc(&self) -> u8 {
         self.wait_rx();
-        unsafe { self.reg_acc.read_reg8(REG_RX_DATA) }
+        unsafe { self.reg_acc.read_reg_u8(REG_RX_DATA) }
     }
 
     fn read(&self, buf: &mut [u8]) {

@@ -37,7 +37,7 @@ impl<T: MemAccess> JellySpi<T> {
 
     pub fn set_divider(&self, div: u16) {
         unsafe {
-            self.reg_acc.write_reg16(REG_SPI_DIVIDER, div);
+            self.reg_acc.write_reg_u16(REG_SPI_DIVIDER, div);
         }
     }
 }
@@ -45,16 +45,16 @@ impl<T: MemAccess> JellySpi<T> {
 impl<T: MemAccess> SpiAccess for JellySpi<T> {
     fn set_cs_n(&self, cs_n: u8) {
         unsafe {
-            self.reg_acc.write_reg8(REG_SPI_CONTROL, cs_n);
+            self.reg_acc.write_reg_u8(REG_SPI_CONTROL, cs_n);
         }
     }
 
     fn exec(&self, data: u8) -> u8 {
         self.wait();
         unsafe {
-            self.reg_acc.write_reg8(REG_SPI_SEND, data);
+            self.reg_acc.write_reg_u8(REG_SPI_SEND, data);
         }
         self.wait();
-        unsafe { self.reg_acc.read_reg8(REG_SPI_RECV) }
+        unsafe { self.reg_acc.read_reg_u8(REG_SPI_RECV) }
     }
 }

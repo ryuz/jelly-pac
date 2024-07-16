@@ -250,7 +250,7 @@ pub struct VideoDmaControl<T: MemAccess> {
 
 impl<T: MemAccess> VideoDmaControl<T> {
     pub fn new(acc: T, pixel_size: i32, word_size: i32, wait_fn: Option<fn()>) -> Result<Self> {
-        let core_id = unsafe { acc.read_reg32(0) };
+        let core_id = unsafe { acc.read_reg_u32(0) };
         if core_id != CORE_ID_DMA_STREAM_WRITE
             && core_id != CORE_ID_DMA_STREAM_READ
             && core_id != CORE_ID_VDMA_AXI4S_TO_AXI4
