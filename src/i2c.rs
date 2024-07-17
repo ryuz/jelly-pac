@@ -49,7 +49,8 @@ impl<T: MemAccess> JellyI2c<T> {
     pub fn putc(&self, dev_adr: u8, data: u8) -> bool {
         unsafe {
             // start
-            self.reg_acc.write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
+            self.reg_acc
+                .write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
             self.wait();
 
             // send
@@ -75,7 +76,8 @@ impl<T: MemAccess> JellyI2c<T> {
     pub fn getc(&self, dev_adr: u8) -> u8 {
         unsafe {
             // start
-            self.reg_acc.write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
+            self.reg_acc
+                .write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
             self.wait();
 
             // send
@@ -105,7 +107,8 @@ impl<T: MemAccess> I2cAccess for JellyI2c<T> {
 
         unsafe {
             // start
-            self.reg_acc.write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
+            self.reg_acc
+                .write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
             self.wait();
 
             // send
@@ -137,7 +140,8 @@ impl<T: MemAccess> I2cAccess for JellyI2c<T> {
 
         unsafe {
             // start
-            self.reg_acc.write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
+            self.reg_acc
+                .write_reg_u8(REG_I2C_CONTROL, I2C_CONTROL_START);
             self.wait();
 
             // send
