@@ -11,6 +11,6 @@ std=[]
 
 [dependencies]
 delegate = "0.13.1"
-jelly-mem_access = { version="0.2.1", default-features=false }
+jelly-mem_access = { version="0.2.2", default-features=false }
 #jelly-mem_access = { git="https://github.com/ryuz/jelly-mem_access.git", branch="develop", default-features=false }
 #jelly-mem_access = { path = "../mem_access", default-features=false }
